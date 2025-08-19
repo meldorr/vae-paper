@@ -9,9 +9,7 @@ batch_size: 500
 benchmark: false
 check_val_every_n_epoch: 1
 checkpoint_callback: true
-data_path: !!python/object/apply:pathlib.PosixPath
-- data
-- traffic_noga_tilFAF_train.pkl
+data_path: "data/traffic_noga_tilFAF_train.pkl"
 default_root_dir: null
 deterministic: false
 devices: null
