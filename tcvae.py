@@ -21,9 +21,13 @@ class TCVAE(nn.Module):
         self.hparams = hparams
         self.inputdim = inputdim
         self.seq_length = seq_length
-        self.scale = nn.Parameter(
-            torch.Tensor([self.hparams["scale"]]), requires_grad=True
-        )
+        # self.scale = nn.Parameter(
+        #     torch.Tensor([self.hparams["scale"]]), requires_grad=True
+        # )
+
+        self._raw_scale = nn.Parameter(torch.tensor(float(self.hparams["scale"])))
+        self.min_scale = 0.05  # pick a floor
+
 
         self.encoder = Encoder(
             input_dim=self.inputdim,
@@ -54,12 +58,7 @@ class TCVAE(nn.Module):
                 encoder=self.encoder,
                 n_components=self.hparams["n_components"]
             )
-        elif self.hparams["prior"] == 'exemplar':
-            print("unavailable now, and will use NormalLSR instead")
-            self.lsr = NormalLSR(
-                input_dim=self.h_dim,
-                out_dim=self.hparams["encoding_dim"]
-            )
+
         else:
             raise ValueError(f"Unknown LSR type: {self.hparams.prior}")
 
@@ -174,6 +173,9 @@ class TCVAE(nn.Module):
         self.log("hp/test_loss", loss)
         return x, x_hat, info
     
+    def decoder_scale(self):
+            return F.softplus(self._raw_scale) + self.min_scale
+    
     def gaussian_likelihood(self, x: torch.Tensor, x_hat: torch.Tensor):
         """Computes the gaussian likelihood.
 
@@ -192,7 +194,7 @@ class TCVAE(nn.Module):
             accessible with ``self.scale``.
         """
         mean = x_hat
-        dist = torch.distributions.Normal(mean, self.scale)
+        dist = torch.distributions.Normal(mean, self.decoder_scale())
         # measure prob of seeing trajectory under p(x|z)
         log_pxz = dist.log_prob(x)
         dims = [i for i in range(1, len(x.size()))]
